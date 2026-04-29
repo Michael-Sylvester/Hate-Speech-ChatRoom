@@ -1,58 +1,73 @@
-## Project Blueprint: African Dialect Toxicity Evaluator
-### 1. Technical Architecture & Layout
-Front-End Framework: Streamlit (Python).
-Layout: A two-column split (st.columns([2, 1])).
-Left Column (Forum): A simulated chat interface.
-Right Column (Model Monitor): A real-time dashboard displaying the performance of multiple models simultaneously.
-State Management: st.session_state to track current messages and evaluation results. All data is lost on page refresh to ensure ephemerality.
-### 2. Evaluation Flow & Logic
-The system's core purpose is to compare how different model variants flag a single input.
-Selection: The user selects a language (Twi or Nigerian Pidgin).
-Simulation Start: On page load/reset, the system pulls a random "Starter Sentence" from a pre-defined list and sends it through the pipeline.
-Parallel Inference: Every input (starter or user-generated) is sent to all relevant models for that language:
-Twi Selected: Engages Final_Multilingual, Few-Shot Twi, and Supervised Twi.
-Pidgin Selected: Engages Final_Multilingual, Few-Shot Pidgin, and Supervised Pidgin.
-Display:
-The Forum displays the message (flagged if any model crosses the threshold).
-The Monitor displays a comparative table showing each model's label and probability score.
+Updated Project Blueprint: African Dialect Toxicity Analyzer
+### 1. Technical Architecture
 
-### 3. Comparative "Monitor" Specifications
-The Monitor side should provide an "at-a-glance" performance view:
-Score Comparison: A table or set of metric cards showing the Toxicity Probability for each active model.
-Model Labels: Color-coded status for each model (e.g., Green for "Neutral", Red for "Hate Speech").
-Performance Delta: Highlighting cases where one model flags a sentence (e.g., Few-Shot) while another misses it (e.g., Multilingual).
+Front-End: Streamlit (Python).
 
-### 4. Reference Implementation Details
-#### Sample Data Pool (African Dialects)
-Language
-Sample Starter Sentences
-Twi
-"Wo gyimi dodo" (Toxic), "Me pɛ sika" (Neutral), "Kwasiafoɔ yi" (Toxic)
-Pidgin
-"You be mumu" (Toxic), "How you dey?" (Neutral), "I go finish you" (Toxic)
 
-#### Logic Hook for AI Implementation
+Backend Inference: A single POST request to the /predict endpoint for every message.
+
+
+State Management: st.session_state to maintain the session's chat history and current inference data.
+
+
+Ephemeral Nature: No database; a page refresh clears all local data.
+
+### 2. Visual Layout: "Forum + Lab"
+The page remains split into two columns to emphasize the AI's "thought process".
+
+
+Left Column (The Forum): A simulated chat environment that starts with a random Twi or Nigerian Pidgin "starter" sentence.
+
+
+Right Column (The Analysis Lab): A real-time monitor showing the full breakdown of the model's output for the active message.
+
+### 3. Functional Logic
+
+Starter Sequence: Upon loading, the app selects a random dialect sentence and automatically calls the API to populate both the forum and the lab.
+
+
+User Input: When a user types a new message, it is sent to the /predict endpoint.
+
+Label Processing:
+
+The app identifies the label with the highest probability.
+
+
+Forum View: If the top label is "Hate Speech" or "Offensive," the message bubble is styled with a warning or redacted.
+
+
+Lab View: Displays a bar chart or probability table showing all labels returned by the API (e.g., showing that a message is 85% "Hate Speech" and 10% "Offensive").
+
+### 4. Reference Code Structure for AI Prompt
+You can use this structure to prompt a code-generation AI to build your app:
+
 Python
-# Model Mapping Logic
-MODELS = {
-    "Twi": ["Final_Multilingual", "Few-Shot Twi", "Supervised Twi"],
-    "Pidgin": ["Final_Multilingual", "Few-Shot Pidgin", "Supervised Pidgin"]
-}
+import streamlit as st
+import requests
 
-# Column Setup
-col1, col2 = st.columns([2, 1])
+# API configuration based on teammate's info
+API_URL = "https://afrihate-e4-zero-702617308840.us-central1.run.app/predict"
 
-with col1:
-    st.header("Forum Feed")
-    # Display message bubbles and handle chat_input
+def analyze_text(text):
+    """Hits the /predict endpoint and returns the full label/score breakdown."""
+    response = requests.post(API_URL, json={"text": text})
+    return response.json()
 
-with col2:
-    st.header("Model Monitor")
-    # Loop through active models and display inference results
-    # st.metric(label=model_name, value=f"{prob:.2f}", delta=label)
+# Layout setup
+col_forum, col_lab = st.columns([2, 1])
+
+with col_forum:
+    st.title("🌍 African Dialect Forum")
+    # Display message bubbles from st.session_state
+
+with col_lab:
+    st.title("🔬 Analysis Lab")
+    # Display probability bar charts for the most recent message
+### 5. Key Demo Features
+Dialect Resilience: Showcases how the model handles Twi and Nigerian Pidgin without manual language switching.
 
 
-### 5. Key Success Metrics for the Demo
-Accuracy Visualization: The goal is to show where specific local dialect models outperform general multilingual models.
-Transparency: Use a "Processing..." spinner for each model to indicate independent analysis.
-No Persistence: Remind viewers that the forum is a "live sandbox" only.
+Full Transparency: By showing all labels and probabilities, you demonstrate the model's confidence levels rather than just a "Yes/No" binary.
+
+
+Interaction: Users can immediately see how slightly changing a sentence in a local dialect affects the model's probability scores.

@@ -1,130 +1,137 @@
 import streamlit as st
+import requests
 import random
-import time
+import pandas as pd
 
-st.set_page_config(page_title="African Dialect Toxicity Evaluator", layout="wide")
+# API configuration based on teammate's info
+API_URL = "https://afrihate-e4-zero-702617308840.us-central1.run.app/predict"
 
-# --- Constants & Configuration ---
-MODELS = {
-    "Twi": ["Final_Multilingual", "Few-Shot Twi", "Supervised Twi"],
-    "Pidgin": ["Final_Multilingual", "Few-Shot Pidgin", "Supervised Pidgin"]
-}
+# Sample starter sentences
+STARTER_SENTENCES = [
+    # Twi
+    "Wo gyimi dodo",
+    "Me pɛ sika",
+    "Kwasiafoɔ yi",
+    # Pidgin
+    "You be mumu",
+    "How you dey?",
+    "I go finish you"
+]
 
-STARTER_SENTENCES = {
-    "Twi": ["Wo gyimi dodo", "Me pɛ sika", "Kwasiafoɔ yi"],
-    "Pidgin": ["You be mumu", "How you dey?", "I go finish you"]
-}
+def analyze_text(text):
+    """Hits the /predict endpoint and returns the full label/score breakdown."""
+    try:
+        response = requests.post(API_URL, json={"text": text})
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        st.error(f"Error calling API: {e}")
+        return None
 
-# --- Mock API Function ---
-def evaluate_toxicity(text, language):
-    """Mock function representing future FastAPI calls."""
-    # Simulated delay to show "Processing..."
-    time.sleep(1.5)
-    
-    results = {}
-    for model in MODELS[language]:
-        # Mocking probability (Replace with real requests.post to FastAPI later)
-        prob = random.uniform(0.0, 1.0)
-        label = "Hate Speech" if prob > 0.6 else "Neutral"
-        results[model] = {"probability": prob, "label": label}
-    return results
-
-# --- State Management ---
-if "language" not in st.session_state:
-    st.session_state.language = "Twi"
+# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-def init_chat(language):
-    """Initialize chat with a starter sentence."""
-    st.session_state.language = language
-    st.session_state.messages = []
-    starter = random.choice(STARTER_SENTENCES[language])
     
-    # Generate initial model results
-    results = evaluate_toxicity(starter, language)
-    is_flagged = any(r["label"] == "Hate Speech" for r in results.values())
+if "current_analysis" not in st.session_state:
+    # On first load, select a random starter sentence and analyze it
+    starter_text = random.choice(STARTER_SENTENCES)
+    st.session_state.messages.append({"role": "user", "content": starter_text})
+    st.session_state.current_analysis = analyze_text(starter_text)
+
+# Layout setup
+st.set_page_config(page_title="African Dialect Toxicity Evaluator", layout="wide")
+
+col_forum, col_lab = st.columns([2, 1])
+
+with col_forum:
+    st.title("🌍 African Dialect Forum")
+    st.caption("A simulated chat environment to test dialect models. Data is not saved.")
     
-    st.session_state.messages.append({
-        "role": "user",
-        "content": starter,
-        "flagged": is_flagged,
-        "results": results
-    })
-
-# Initialize on first load
-if not st.session_state.messages:
-    with st.spinner("Initializing models..."):
-        init_chat(st.session_state.language)
-
-# --- Header ---
-st.title("African Dialect Toxicity Evaluator")
-st.markdown("A live sandbox comparing general multilingual vs. local dialect toxicity models. *Data is ephemeral.*")
-
-# Language selection triggers reset
-selected_lang = st.radio("Select Dialect:", ["Twi", "Pidgin"], horizontal=True, key="lang_radio")
-if selected_lang != st.session_state.language:
-    with st.spinner(f"Switching context to {selected_lang}..."):
-        init_chat(selected_lang)
-        st.rerun()
-
-st.divider()
-
-# --- Main Layout ---
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.header("Forum Feed")
-    
-    # Display chat messages
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            content = msg["content"]
-            if msg.get("flagged"):
-                content += "  \n🚨 **[FLAGGED: Potential Hate Speech]**"
-            st.write(content)
-    
-    # Chat input
-    if prompt := st.chat_input(f"Send a message in {st.session_state.language}..."):
-        # We want to display the user's message right away with a spinner
-        with st.chat_message("user"):
-            st.write(prompt)
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            
+    # React to user input
+    if prompt := st.chat_input("Enter a sentence to test..."):
+        # Display user message in chat message container
+        st.chat_message("user").markdown(prompt)
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
         
-        with st.spinner("Analyzing message across models..."):
-            results = evaluate_toxicity(prompt, st.session_state.language)
-            is_flagged = any(r["label"] == "Hate Speech" for r in results.values())
-            
-            st.session_state.messages.append({
-                "role": "user",
-                "content": prompt,
-                "flagged": is_flagged,
-                "results": results
-            })
-        st.rerun()
+        # Analyze the new text
+        with st.spinner("Analyzing text..."):
+            analysis_result = analyze_text(prompt)
+            st.session_state.current_analysis = analysis_result
 
-with col2:
-    st.header("Model Monitor")
-    st.markdown("Real-time comparative performance delta.")
+with col_lab:
+    st.title("🔬 Analysis Lab")
+    st.caption("Real-time monitor showing the model's output breakdown.")
     
-    if st.session_state.messages:
-        latest = st.session_state.messages[-1]
-        st.info(f"**Latest Input:** {latest['content']}")
+    current_analysis = st.session_state.get("current_analysis")
+    
+    if current_analysis:
+        st.subheader("Latest Message Analysis")
         
-        for model_name, res in latest["results"].items():
-            prob = res["probability"]
-            label = res["label"]
-            
-            # Visual styling
-            color = "#ff4b4b" if label == "Hate Speech" else "#00cc96"
-            
-            with st.container():
-                # Using columns for metric-like display
-                mcol1, mcol2 = st.columns([3, 1])
-                with mcol1:
-                    st.markdown(f"**{model_name}**")
-                    st.markdown(f"<span style='color:{color}; font-weight:bold;'>{label}</span>", unsafe_allow_html=True)
-                with mcol2:
-                    st.metric(label="Score", value=f"{prob:.2f}")
-                
-                st.progress(prob)
-                st.divider()
+        # Determine the top label
+        # The API likely returns a list of dictionaries with 'label' and 'score' or similar.
+        # Handling potentially different API response structures:
+        # Example 1: [{"label": "Hate Speech", "score": 0.85}, ...]
+        # Example 2: {"Hate Speech": 0.85, "Offensive": 0.10, "Normal": 0.05}
+        
+        try:
+            if isinstance(current_analysis, list):
+                # Assuming list of dicts with 'label' and 'score'
+                df = pd.DataFrame(current_analysis)
+                if 'label' in df.columns and 'score' in df.columns:
+                    top_label_idx = df['score'].idxmax()
+                    top_label = df.loc[top_label_idx, 'label']
+                    top_score = df.loc[top_label_idx, 'score']
+                    
+                    st.metric(label="Top Prediction", value=top_label, delta=f"{top_score:.2%} Confidence", delta_color="off")
+                    
+                    if top_label.lower() in ["hate speech", "offensive", "toxic"]:
+                        st.error(f"⚠️ Flagged as {top_label}")
+                    else:
+                        st.success(f"✅ Flagged as {top_label}")
+                        
+                    st.write("Detailed Probabilities:")
+                    st.bar_chart(df.set_index('label')['score'])
+                else:
+                    st.write(current_analysis) # Fallback display
+
+            elif isinstance(current_analysis, dict):
+                # Check for nested structures or flat dictionary
+                if 'predictions' in current_analysis and isinstance(current_analysis['predictions'], list):
+                    df = pd.DataFrame(current_analysis['predictions'])
+                    if 'label' in df.columns and 'score' in df.columns:
+                        st.bar_chart(df.set_index('label')['score'])
+                    else:
+                         st.write(current_analysis)
+                else:
+                    # Treat it as a flat label: score dict
+                    # Try to filter out non-numeric values
+                    numeric_data = {k: v for k, v in current_analysis.items() if isinstance(v, (int, float))}
+                    if numeric_data:
+                        top_label = max(numeric_data, key=numeric_data.get)
+                        top_score = numeric_data[top_label]
+                        
+                        st.metric(label="Top Prediction", value=top_label, delta=f"{top_score:.2%} Confidence", delta_color="off")
+                        
+                        if top_label.lower() in ["hate speech", "offensive", "toxic"]:
+                            st.error(f"⚠️ Flagged as {top_label}")
+                        else:
+                            st.success(f"✅ Flagged as {top_label}")
+
+                        df = pd.DataFrame(list(numeric_data.items()), columns=['Label', 'Score']).set_index('Label')
+                        st.write("Detailed Probabilities:")
+                        st.bar_chart(df['Score'])
+                    else:
+                        st.write(current_analysis) # Fallback display
+            else:
+                st.write(current_analysis) # Fallback display
+        except Exception as e:
+            st.error(f"Error parsing analysis results: {e}")
+            st.write("Raw response:", current_analysis)
+    else:
+        st.info("No analysis data available yet. Please send a message.")
