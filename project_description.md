@@ -71,3 +71,33 @@ Full Transparency: By showing all labels and probabilities, you demonstrate the 
 
 
 Interaction: Users can immediately see how slightly changing a sentence in a local dialect affects the model's probability scores.
+
+### 6. model output
+example of the model output when the predict api is called
+
+` {
+  "model_scope": {
+    "base_encoder": "Davlan/afro-xlmr-large-76L",
+    "fine_tune_languages": [
+      "hau",
+      "amh",
+      "yor"
+    ],
+    "zero_shot_eval_languages": [
+      "twi",
+      "pcm"
+    ],
+    "label_schema": "AfriHate 3-class (Abuse / Hate / Normal)",
+    "variant": "e4_zero",
+    "variant_name": "E4 cross-lingual zero-shot (hau+amh+yor → twi/pcm)",
+    "out_of_scope_warning": "This checkpoint is not an English toxicity detector. It was fine-tuned only on AfriHate posts in Hausa, Amharic, and Yoruba; English or other languages are out of distribution and can look nonsensical (e.g. clear threats predicted as Normal)."
+  },
+  "text": "string",
+  "label": "Abuse",
+  "label_id": 0,
+  "scores": {
+    "Abuse": 0.5211663246154785,
+    "Hate": 0.002984776860103011,
+    "Normal": 0.47584885358810425
+  }
+}`

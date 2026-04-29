@@ -73,63 +73,35 @@ with col_lab:
     if current_analysis:
         st.subheader("Latest Message Analysis")
         
-        # Determine the top label
-        # The API likely returns a list of dictionaries with 'label' and 'score' or similar.
-        # Handling potentially different API response structures:
-        # Example 1: [{"label": "Hate Speech", "score": 0.85}, ...]
-        # Example 2: {"Hate Speech": 0.85, "Offensive": 0.10, "Normal": 0.05}
+        # Determine the top label from the API response
+        # Expected format:
+        # {
+        #   "label": "Abuse",
+        #   "label_id": 0,
+        #   "scores": {"Abuse": 0.52, "Hate": 0.002, "Normal": 0.47}
+        # }
         
         try:
-            if isinstance(current_analysis, list):
-                # Assuming list of dicts with 'label' and 'score'
-                df = pd.DataFrame(current_analysis)
-                if 'label' in df.columns and 'score' in df.columns:
-                    top_label_idx = df['score'].idxmax()
-                    top_label = df.loc[top_label_idx, 'label']
-                    top_score = df.loc[top_label_idx, 'score']
-                    
-                    st.metric(label="Top Prediction", value=top_label, delta=f"{top_score:.2%} Confidence", delta_color="off")
-                    
-                    if top_label.lower() in ["hate speech", "offensive", "toxic"]:
-                        st.error(f"⚠️ Flagged as {top_label}")
-                    else:
-                        st.success(f"✅ Flagged as {top_label}")
-                        
-                    st.write("Detailed Probabilities:")
-                    st.bar_chart(df.set_index('label')['score'])
+            if isinstance(current_analysis, dict) and "label" in current_analysis and "scores" in current_analysis:
+                top_label = current_analysis["label"]
+                scores = current_analysis["scores"]
+                top_score = scores.get(top_label, 0)
+                
+                st.metric(label="Top Prediction", value=top_label, delta=f"{top_score:.2%} Confidence", delta_color="off")
+                
+                if top_label.lower() in ["hate", "abuse", "hate speech", "offensive", "toxic"]:
+                    st.error(f"⚠️ Flagged as {top_label}")
                 else:
-                    st.write(current_analysis) # Fallback display
-
-            elif isinstance(current_analysis, dict):
-                # Check for nested structures or flat dictionary
-                if 'predictions' in current_analysis and isinstance(current_analysis['predictions'], list):
-                    df = pd.DataFrame(current_analysis['predictions'])
-                    if 'label' in df.columns and 'score' in df.columns:
-                        st.bar_chart(df.set_index('label')['score'])
-                    else:
-                         st.write(current_analysis)
-                else:
-                    # Treat it as a flat label: score dict
-                    # Try to filter out non-numeric values
-                    numeric_data = {k: v for k, v in current_analysis.items() if isinstance(v, (int, float))}
-                    if numeric_data:
-                        top_label = max(numeric_data, key=numeric_data.get)
-                        top_score = numeric_data[top_label]
-                        
-                        st.metric(label="Top Prediction", value=top_label, delta=f"{top_score:.2%} Confidence", delta_color="off")
-                        
-                        if top_label.lower() in ["hate speech", "offensive", "toxic"]:
-                            st.error(f"⚠️ Flagged as {top_label}")
-                        else:
-                            st.success(f"✅ Flagged as {top_label}")
-
-                        df = pd.DataFrame(list(numeric_data.items()), columns=['Label', 'Score']).set_index('Label')
-                        st.write("Detailed Probabilities:")
-                        st.bar_chart(df['Score'])
-                    else:
-                        st.write(current_analysis) # Fallback display
+                    st.success(f"✅ Flagged as {top_label}")
+                
+                df = pd.DataFrame(list(scores.items()), columns=['Label', 'Score']).set_index('Label')
+                st.write("Detailed Probabilities:")
+                st.bar_chart(df['Score'])
+                
+                with st.expander("View Model Scope"):
+                    st.json(current_analysis.get("model_scope", {}))
             else:
-                st.write(current_analysis) # Fallback display
+                st.write("Raw response:", current_analysis) # Fallback display
         except Exception as e:
             st.error(f"Error parsing analysis results: {e}")
             st.write("Raw response:", current_analysis)
