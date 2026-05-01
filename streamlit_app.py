@@ -41,6 +41,30 @@ if "current_analysis" not in st.session_state:
 # Layout setup
 st.set_page_config(page_title="African Dialect Toxicity Evaluator", layout="wide")
 
+# Custom CSS for Beach Towels accent colors
+st.markdown("""
+<style>
+    /* User chat message bubble - Teal */
+    [data-testid="stChatMessage"]:nth-child(even) {
+        background-color: #2ab7ca !important;
+        border-radius: 10px;
+        padding: 10px;
+        color: white;
+    }
+    /* AI chat message bubble - Yellow Accent */
+    [data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: #fed766 !important;
+        border-radius: 10px;
+        padding: 10px;
+        color: #333;
+    }
+    /* Style the main metric value */
+    [data-testid="stMetricValue"] {
+        color: #fe4a49;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 col_forum, col_lab = st.columns([2, 1])
 
 with col_forum:
