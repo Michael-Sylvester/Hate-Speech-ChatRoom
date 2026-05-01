@@ -47,15 +47,8 @@ with col_forum:
     st.title("🌍 African Dialect Forum")
     st.caption("A simulated chat environment to test dialect models. Data is not saved.")
     
-    # Display chat messages from history on app rerun
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-            
-    # React to user input
+    # React to user input first so it updates the state
     if prompt := st.chat_input("Enter a sentence to test..."):
-        # Display user message in chat message container
-        st.chat_message("user").markdown(prompt)
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
         
@@ -63,6 +56,11 @@ with col_forum:
         with st.spinner("Analyzing text..."):
             analysis_result = analyze_text(prompt)
             st.session_state.current_analysis = analysis_result
+
+    # Display chat messages from history on app rerun (newest first)
+    for message in reversed(st.session_state.messages):
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 with col_lab:
     st.title("🔬 Analysis Lab")
